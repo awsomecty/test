@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity >=0.7.0 <0.9.0;
+pragma solidity ^0.8.0;
 
 contract Ballot {
-    // 这声明了一个新的复杂类型，用于稍后变量。
-    // 它用来表示一个选民。
     struct Voter {
         uint weight;       // 计票的权重
         bool voted;        // 若为真，代表该人已投票
@@ -11,7 +9,6 @@ contract Ballot {
         uint vote;         // 投票提案的索引
     }
 
-    // 提案的类型
     struct Proposal {
         bytes32 name; // 简称(最长32个字节)
         uint voteCount; // 得票数
@@ -19,19 +16,15 @@ contract Ballot {
 
     address public chairperson;
 
-    // 这声明了一个状态变量，为每个可能的地址存储一个‘Voter’。
     mapping(address => Voter) public voters;
 
-    // 一个‘Proposal’结构类型的动态数组
     Proposal[] public proposals;
 
-    // 投票开始和结束时间
     uint public startTime;
     uint public endTime;
 
     constructor(bytes32[] memory proposalNames, uint _startTime, uint _endTime) {
         chairperson = msg.sender;
-        voters[chairperson].weight = 1;
         require(_startTime >= block.timestamp, "Start time must be in the future");
         require(_endTime > _startTime, "End time must be after start time");
         startTime = _startTime;
@@ -45,11 +38,25 @@ contract Ballot {
         }
     }
 
-    function giveRightToVote(address voter) external {
-        require(msg.sender == chairperson, "Only chairperson can give right to vote.");
+    modifier onlyChairperson() {
+        require(msg.sender == chairperson, "Only chairperson can perform this action.");
+        _;
+    }
+
+    modifier beforeVotingStarts() {
+        require(block.timestamp < startTime, "Voting has already started.");
+        _;
+    }
+
+    function giveRightToVote(address voter) external onlyChairperson {
         require(!voters[voter].voted, "The voter already voted.");
         require(voters[voter].weight == 0);
         voters[voter].weight = 1;
+    }
+
+    function setVoterWeight(address voter, uint weight) external onlyChairperson beforeVotingStarts {
+        require(weight > 0, "Weight must be greater than 0.");
+        voters[voter].weight = weight;
     }
 
     function vote(uint proposal) external {
